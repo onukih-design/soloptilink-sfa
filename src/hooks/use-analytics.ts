@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { IS_DEMO_MODE } from '@/lib/demo-mode'
-import { MOCK_DEALS, MOCK_USERS, MOCK_AI_TOOL_ORDERS } from '@/lib/mock-data'
+import { MOCK_DEALS, MOCK_USERS, MOCK_AI_TOOL_ORDERS, MOCK_LISTS } from '@/lib/mock-data'
 
 export type CloserAnalysis = {
   userId: string
@@ -293,18 +293,15 @@ export function useListAnalysis() {
 
       // デモモード: モックデータを使用
       if (IS_DEMO_MODE) {
-        // まず、リストIDからリスト名のマップを作成する必要がある
-        // mock-data.tsには MOCK_LISTS がないため、ここでは仮のデータを生成
+        // MOCK_LISTSからリストIDとリスト名のマップを作成
         const listNameMap = new Map<string, string>()
+        MOCK_LISTS.forEach((l) => {
+          listNameMap.set(l.id, l.list_name)
+        })
 
         deals = MOCK_DEALS.map((d) => {
           const closer = MOCK_USERS.find((u) => u.id === d.closer_id)
           const appointer = MOCK_USERS.find((u) => u.id === d.appointer_id)
-
-          // リスト名をIDから生成（仮）
-          if (d.list_id && !listNameMap.has(d.list_id)) {
-            listNameMap.set(d.list_id, `リスト_${listNameMap.size + 1}`)
-          }
 
           return {
             id: d.id,
@@ -314,7 +311,7 @@ export function useListAnalysis() {
             appointer_id: d.appointer_id,
             closer: closer || null,
             appointer: appointer || null,
-            list: d.list_id ? { id: d.list_id, list_name: listNameMap.get(d.list_id) || 'unknown' } : null,
+            list: d.list_id ? { id: d.list_id, list_name: listNameMap.get(d.list_id) || '未分類' } : null,
           }
         })
       } else {
