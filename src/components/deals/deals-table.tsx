@@ -177,6 +177,19 @@ export function DealsTable({ deals, onInlineUpdate }: Props) {
         ),
       },
       {
+        accessorKey: 'notes',
+        header: 'メモ',
+        size: 200,
+        cell: ({ row }) => (
+          <div
+            className="text-sm truncate max-w-[190px] text-muted-foreground"
+            title={row.original.notes || ''}
+          >
+            {row.original.notes || '-'}
+          </div>
+        ),
+      },
+      {
         id: 'actions',
         size: 40,
         enableSorting: false,

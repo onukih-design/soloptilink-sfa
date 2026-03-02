@@ -43,6 +43,7 @@ export function RecentDeals({ deals }: Props) {
                 <TableHead className="w-[90px]">ヨミ</TableHead>
                 <TableHead className="text-right w-[120px]">金額</TableHead>
                 <TableHead className="w-[100px]">更新日</TableHead>
+                <TableHead>メモ</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -84,6 +85,14 @@ export function RecentDeals({ deals }: Props) {
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {formatDate(deal.updatedAt)}
+                    </TableCell>
+                    <TableCell>
+                      <div
+                        className="text-sm truncate max-w-[180px] text-muted-foreground"
+                        title={deal.notes || ''}
+                      >
+                        {deal.notes || '-'}
+                      </div>
                     </TableCell>
                   </TableRow>
                 )

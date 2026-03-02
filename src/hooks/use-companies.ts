@@ -21,6 +21,7 @@ export type CompanyWithRelations = Tables<'companies'> & {
     id: string
     deal_name: string
     yomi_status: string
+    notes: string | null
   }>
 }
 
@@ -139,6 +140,7 @@ export function useCompany(id: string) {
             id: d.id,
             deal_name: d.deal_name,
             yomi_status: d.yomi_status,
+            notes: d.notes,
           })),
         } as unknown as CompanyWithRelations
       }
@@ -149,7 +151,7 @@ export function useCompany(id: string) {
         .select(`
           *,
           contacts:contacts(id, last_name, first_name, position),
-          deals:deals(id, deal_name, yomi_status)
+          deals:deals(id, deal_name, yomi_status, notes)
         `)
         .eq('id', id)
         .single()
