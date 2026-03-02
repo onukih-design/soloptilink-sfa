@@ -10,6 +10,7 @@ import {
   type ColumnDef,
   type SortingState,
 } from '@tanstack/react-table'
+import { OutsourcingDealSheet } from '@/components/deals/outsourcing-deal-sheet'
 import {
   Table,
   TableBody,
@@ -79,6 +80,7 @@ export default function LeadsOutsourcingPage() {
   const [sorting, setSorting] = useState<SortingState>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedStatus, setSelectedStatus] = useState<string>('all')
+  const [selectedDealId, setSelectedDealId] = useState<string | null>(null)
 
   // 営業代行リストIDと企業IDを取得
   const outsourcingListId = useMemo(
@@ -450,7 +452,11 @@ export default function LeadsOutsourcingPage() {
                         </TableRow>
                       ) : (
                         table.getRowModel().rows.map((row) => (
-                          <TableRow key={row.id} className="hover:bg-muted/50">
+                          <TableRow
+                            key={row.id}
+                            className="hover:bg-muted/50 cursor-pointer"
+                            onClick={() => setSelectedDealId(row.original.id)}
+                          >
                             {row.getVisibleCells().map((cell) => (
                               <TableCell
                                 key={cell.id}
@@ -683,6 +689,14 @@ export default function LeadsOutsourcingPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <OutsourcingDealSheet
+        dealId={selectedDealId}
+        open={!!selectedDealId}
+        onOpenChange={(open) => {
+          if (!open) setSelectedDealId(null)
+        }}
+      />
     </div>
   )
 }

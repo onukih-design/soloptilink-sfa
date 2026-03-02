@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
@@ -15,6 +16,7 @@ import { formatCurrency, formatPercent } from '@/lib/utils/format'
 import { PRODUCT_NAMES, type ProductKey } from '@/lib/constants/margins'
 import { Download, Users, UserCheck, Package, List as ListIcon } from 'lucide-react'
 import { exportToExcel } from '@/lib/utils/excel-export'
+import { ListDealsSheet } from '@/components/analytics/list-deals-sheet'
 
 const CHART_COLORS = ['#3B82F6', '#22C55E', '#F97316', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#EAB308']
 
@@ -34,6 +36,9 @@ export default function AnalyticsPage() {
   const { data: appointerData, isLoading: appointerLoading } = useAppointerAnalysis()
   const { data: productData, isLoading: productLoading } = useProductAnalysis()
   const { data: listData, isLoading: listLoading } = useListAnalysis()
+
+  const [selectedListId, setSelectedListId] = useState<string | null>(null)
+  const [selectedListName, setSelectedListName] = useState('')
 
   const isLoading = closerLoading || appointerLoading || productLoading || listLoading
 
@@ -456,7 +461,17 @@ export default function AnalyticsPage() {
                   ) : (
                     listData.map((list) => (
                       <TableRow key={list.listId}>
-                        <TableCell className="font-medium">{list.listName}</TableCell>
+                        <TableCell className="font-medium">
+                          <button
+                            className="text-left hover:underline hover:text-primary transition-colors cursor-pointer"
+                            onClick={() => {
+                              setSelectedListId(list.listId)
+                              setSelectedListName(list.listName)
+                            }}
+                          >
+                            {list.listName}
+                          </button>
+                        </TableCell>
                         <TableCell className="text-right">{list.totalDeals}</TableCell>
                         <TableCell className="text-right">{list.activeDeals}</TableCell>
                         <TableCell className="text-right font-medium text-green-600">{list.wonDeals}</TableCell>
@@ -501,6 +516,15 @@ export default function AnalyticsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <ListDealsSheet
+        listId={selectedListId}
+        listName={selectedListName}
+        open={!!selectedListId}
+        onOpenChange={(open) => {
+          if (!open) setSelectedListId(null)
+        }}
+      />
     </div>
   )
 }
