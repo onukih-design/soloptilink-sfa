@@ -10,20 +10,32 @@ import { Button } from '@/components/ui/button'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts'
-import { useCloserAnalysis, useAppointerAnalysis, useProductAnalysis } from '@/hooks/use-analytics'
+import { useCloserAnalysis, useAppointerAnalysis, useProductAnalysis, useListAnalysis } from '@/hooks/use-analytics'
 import { formatCurrency, formatPercent } from '@/lib/utils/format'
 import { PRODUCT_NAMES, type ProductKey } from '@/lib/constants/margins'
-import { Download, Users, UserCheck, Package } from 'lucide-react'
+import { Download, Users, UserCheck, Package, List as ListIcon } from 'lucide-react'
 import { exportToExcel } from '@/lib/utils/excel-export'
 
 const CHART_COLORS = ['#3B82F6', '#22C55E', '#F97316', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#EAB308']
+
+const yomiColors: Record<string, string> = {
+  '受注': 'bg-green-100 text-green-800 border-green-200',
+  'Aヨミ': 'bg-blue-100 text-blue-800 border-blue-200',
+  'Bヨミ': 'bg-cyan-100 text-cyan-800 border-cyan-200',
+  'Cヨミ': 'bg-yellow-100 text-yellow-800 border-yellow-200',
+  'ネタ': 'bg-purple-100 text-purple-800 border-purple-200',
+  '没ネタ': 'bg-gray-100 text-gray-800 border-gray-200',
+  '失注': 'bg-red-100 text-red-800 border-red-200',
+  '消滅': 'bg-gray-100 text-gray-600 border-gray-200',
+}
 
 export default function AnalyticsPage() {
   const { data: closerData, isLoading: closerLoading } = useCloserAnalysis()
   const { data: appointerData, isLoading: appointerLoading } = useAppointerAnalysis()
   const { data: productData, isLoading: productLoading } = useProductAnalysis()
+  const { data: listData, isLoading: listLoading } = useListAnalysis()
 
-  const isLoading = closerLoading || appointerLoading || productLoading
+  const isLoading = closerLoading || appointerLoading || productLoading || listLoading
 
   const handleExportCloser = () => {
     if (!closerData) return
@@ -75,6 +87,34 @@ export default function AnalyticsPage() {
     )
   }
 
+  const handleExportList = () => {
+    if (!listData) return
+    exportToExcel(
+      listData.map((l) => ({
+        list_name: l.listName,
+        total_deals: l.totalDeals,
+        active_deals: l.activeDeals,
+        won_deals: l.wonDeals,
+        lost_deals: l.lostDeals,
+        close_rate: `${Math.floor(l.closeRate * 100)}%`,
+        top_closer: l.topClosers.map(c => `${c.name}(${c.count})`).join(', '),
+        top_appointer: l.topAppointers.map(a => `${a.name}(${a.count})`).join(', '),
+      })),
+      [
+        { header: 'リスト名', key: 'list_name', width: 25 },
+        { header: '案件数', key: 'total_deals', width: 10 },
+        { header: 'アクティブ', key: 'active_deals', width: 12 },
+        { header: '受注', key: 'won_deals', width: 8 },
+        { header: '失注', key: 'lost_deals', width: 8 },
+        { header: '受注率', key: 'close_rate', width: 10 },
+        { header: 'トップクローザー', key: 'top_closer', width: 25 },
+        { header: 'トップアポインター', key: 'top_appointer', width: 25 },
+      ],
+      `リスト分析_${new Date().toISOString().split('T')[0].replace(/-/g, '')}`,
+      'リスト分析'
+    )
+  }
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -104,6 +144,10 @@ export default function AnalyticsPage() {
           <TabsTrigger value="product" className="flex items-center gap-1">
             <Package className="h-3.5 w-3.5" />
             商品分析
+          </TabsTrigger>
+          <TabsTrigger value="list" className="flex items-center gap-1">
+            <ListIcon className="h-3.5 w-3.5" />
+            リスト分析
           </TabsTrigger>
         </TabsList>
 
@@ -318,6 +362,135 @@ export default function AnalyticsPage() {
                           <Badge variant="outline" className="text-xs">
                             {formatPercent(p.marginRate, true)}
                           </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* リスト分析 */}
+        <TabsContent value="list" className="space-y-4">
+          <div className="flex justify-end">
+            <Button variant="outline" size="sm" onClick={handleExportList}>
+              <Download className="h-4 w-4 mr-2" />
+              Excel出力
+            </Button>
+          </div>
+
+          {/* リスト別サマリーカード */}
+          <div className="grid gap-4 md:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">リスト数</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{listData?.length || 0}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">総案件数</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {listData?.reduce((sum, l) => sum + l.totalDeals, 0) || 0}
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">総受注数</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">
+                  {listData?.reduce((sum, l) => sum + l.wonDeals, 0) || 0}
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">全体受注率</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {listData && listData.length > 0
+                    ? formatPercent(
+                        listData.reduce((sum, l) => sum + l.wonDeals, 0) /
+                          listData.reduce((sum, l) => sum + l.totalDeals, 0),
+                        true
+                      )
+                    : '0%'}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* リスト別テーブル */}
+          <Card>
+            <CardContent className="pt-6">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>リスト名</TableHead>
+                    <TableHead className="text-right">案件数</TableHead>
+                    <TableHead className="text-right">アクティブ</TableHead>
+                    <TableHead className="text-right">受注</TableHead>
+                    <TableHead className="text-right">失注</TableHead>
+                    <TableHead className="text-right">受注率</TableHead>
+                    <TableHead>ヨミ内訳</TableHead>
+                    <TableHead>トップクローザー</TableHead>
+                    <TableHead>トップアポインター</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(!listData || listData.length === 0) ? (
+                    <TableRow>
+                      <TableCell colSpan={9} className="text-center text-muted-foreground h-20">
+                        データがありません
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    listData.map((list) => (
+                      <TableRow key={list.listId}>
+                        <TableCell className="font-medium">{list.listName}</TableCell>
+                        <TableCell className="text-right">{list.totalDeals}</TableCell>
+                        <TableCell className="text-right">{list.activeDeals}</TableCell>
+                        <TableCell className="text-right font-medium text-green-600">{list.wonDeals}</TableCell>
+                        <TableCell className="text-right text-red-500">{list.lostDeals}</TableCell>
+                        <TableCell className="text-right">
+                          <Badge variant={list.closeRate >= 0.1 ? 'default' : 'outline'} className="text-xs">
+                            {formatPercent(list.closeRate, true)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {Object.entries(list.byYomi)
+                              .filter(([, count]) => count > 0)
+                              .sort((a, b) => b[1] - a[1])
+                              .map(([status, count]) => (
+                                <Badge key={status} variant="outline" className={`text-[10px] ${yomiColors[status] || ''}`}>
+                                  {status}:{count}
+                                </Badge>
+                              ))}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-xs">
+                            {list.topClosers.slice(0, 2).map((c, i) => (
+                              <span key={i}>{c.name}({c.count}){i === 0 && list.topClosers.length > 1 ? ', ' : ''}</span>
+                            ))}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-xs">
+                            {list.topAppointers.slice(0, 2).map((a, i) => (
+                              <span key={i}>{a.name}({a.count}){i === 0 && list.topAppointers.length > 1 ? ', ' : ''}</span>
+                            ))}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))

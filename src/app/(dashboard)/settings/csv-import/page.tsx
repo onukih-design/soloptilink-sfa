@@ -551,14 +551,15 @@ export default function CSVImportPage() {
       {csvData.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">データプレビュー（最大10件）</CardTitle>
+            <CardTitle className="text-base">データプレビュー（全{csvData.length}件）</CardTitle>
             <CardDescription>インポートされるデータの確認</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto max-h-[600px] overflow-y-auto border rounded-md">
               <Table>
                 <TableHeader>
-                  <TableRow>
+                  <TableRow className="sticky top-0 bg-background z-10">
+                    <TableHead className="whitespace-nowrap w-12 text-center">#</TableHead>
                     {csvHeaders.map(header => (
                       <TableHead key={header} className="whitespace-nowrap">
                         {header}
@@ -567,10 +568,11 @@ export default function CSVImportPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {csvData.slice(0, 10).map((row, i) => (
+                  {csvData.map((row, i) => (
                     <TableRow key={i}>
+                      <TableCell className="text-center text-muted-foreground text-xs">{i + 1}</TableCell>
                       {csvHeaders.map(header => (
-                        <TableCell key={header} className="whitespace-nowrap">
+                        <TableCell key={header} className="whitespace-nowrap max-w-[300px] truncate" title={row[header]}>
                           {row[header]}
                         </TableCell>
                       ))}
@@ -579,11 +581,9 @@ export default function CSVImportPage() {
                 </TableBody>
               </Table>
             </div>
-            {csvData.length > 10 && (
-              <p className="text-xs text-muted-foreground mt-4 text-center">
-                他 {csvData.length - 10}件のデータ
-              </p>
-            )}
+            <p className="text-xs text-muted-foreground mt-2 text-center">
+              全 {csvData.length}件を表示中
+            </p>
           </CardContent>
         </Card>
       )}

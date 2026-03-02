@@ -36,6 +36,19 @@ export type ProductAnalysis = {
   marginRate: number
 }
 
+export type ListAnalysis = {
+  listId: string
+  listName: string
+  totalDeals: number
+  activeDeals: number
+  wonDeals: number
+  lostDeals: number
+  closeRate: number
+  byYomi: Record<string, number>
+  topClosers: Array<{ name: string; count: number }>
+  topAppointers: Array<{ name: string; count: number }>
+}
+
 // 分析用の中間型定義（any型排除）
 type CloserDealRow = {
   id: string
@@ -59,6 +72,17 @@ type ProductOrderRow = {
   monthly_margin: number | null
   margin_rate: number | null
   status: string | null
+}
+
+type ListDealRow = {
+  id: string
+  yomi_status: string | null
+  list_id: string | null
+  closer_id: string | null
+  appointer_id: string | null
+  closer: { display_name: string } | { display_name: string }[] | null
+  appointer: { display_name: string } | { display_name: string }[] | null
+  list: { id: string; list_name: string } | { id: string; list_name: string }[] | null
 }
 
 // Closer performance analysis
@@ -253,6 +277,145 @@ export function useProductAnalysis() {
         ...p,
         avgMonthlyFee: p.activeCount > 0 ? Math.floor(p.totalMRR / p.activeCount) : 0,
       })).sort((a, b) => b.totalMRR - a.totalMRR)
+    },
+    staleTime: 60 * 1000,
+  })
+}
+
+// List analysis
+export function useListAnalysis() {
+  const supabase = IS_DEMO_MODE ? null : createClient()
+
+  return useQuery({
+    queryKey: ['analytics', 'list'],
+    queryFn: async () => {
+      let deals: ListDealRow[] = []
+
+      // デモモード: モックデータを使用
+      if (IS_DEMO_MODE) {
+        // まず、リストIDからリスト名のマップを作成する必要がある
+        // mock-data.tsには MOCK_LISTS がないため、ここでは仮のデータを生成
+        const listNameMap = new Map<string, string>()
+
+        deals = MOCK_DEALS.map((d) => {
+          const closer = MOCK_USERS.find((u) => u.id === d.closer_id)
+          const appointer = MOCK_USERS.find((u) => u.id === d.appointer_id)
+
+          // リスト名をIDから生成（仮）
+          if (d.list_id && !listNameMap.has(d.list_id)) {
+            listNameMap.set(d.list_id, `リスト_${listNameMap.size + 1}`)
+          }
+
+          return {
+            id: d.id,
+            yomi_status: d.yomi_status,
+            list_id: d.list_id,
+            closer_id: d.closer_id,
+            appointer_id: d.appointer_id,
+            closer: closer || null,
+            appointer: appointer || null,
+            list: d.list_id ? { id: d.list_id, list_name: listNameMap.get(d.list_id) || 'unknown' } : null,
+          }
+        })
+      } else {
+        // 通常モード
+        const { data, error } = await supabase!
+          .from('deals')
+          .select(`
+            id,
+            yomi_status,
+            list_id,
+            closer_id,
+            appointer_id,
+            closer:users!deals_closer_id_fkey(id, display_name),
+            appointer:users!deals_appointer_id_fkey(id, display_name),
+            list:lists!deals_list_id_fkey(id, list_name)
+          `)
+
+        if (error) throw error
+        deals = (data || []) as ListDealRow[]
+      }
+
+      const listMap = new Map<string, ListAnalysis>()
+
+      for (const deal of deals || []) {
+        const listId = deal.list_id
+        if (!listId) continue
+
+        const listData = deal.list as { id: string; list_name: string } | null
+        const listName = listData?.list_name || 'リスト名不明'
+
+        if (!listMap.has(listId)) {
+          listMap.set(listId, {
+            listId,
+            listName,
+            totalDeals: 0,
+            activeDeals: 0,
+            wonDeals: 0,
+            lostDeals: 0,
+            closeRate: 0,
+            byYomi: {},
+            topClosers: [],
+            topAppointers: [],
+          })
+        }
+
+        const list = listMap.get(listId)!
+        list.totalDeals += 1
+
+        const yomi = deal.yomi_status || 'ネタ'
+        list.byYomi[yomi] = (list.byYomi[yomi] || 0) + 1
+
+        if (yomi === '受注') {
+          list.wonDeals += 1
+        } else if (yomi === '失注' || yomi === '消滅') {
+          list.lostDeals += 1
+        } else if (!['没ネタ'].includes(yomi)) {
+          list.activeDeals += 1
+        }
+      }
+
+      // クローザー・アポインターのトップを計算
+      return Array.from(listMap.values()).map((list) => {
+        const listDeals = deals.filter((d) => d.list_id === list.listId)
+
+        // クローザー集計
+        const closerCounts = new Map<string, { name: string; count: number }>()
+        listDeals.forEach((d) => {
+          if (d.closer_id && d.yomi_status === '受注') {
+            const closerData = d.closer as { display_name: string } | null
+            const name = closerData?.display_name || '不明'
+            if (!closerCounts.has(d.closer_id)) {
+              closerCounts.set(d.closer_id, { name, count: 0 })
+            }
+            closerCounts.get(d.closer_id)!.count += 1
+          }
+        })
+
+        // アポインター集計
+        const appointerCounts = new Map<string, { name: string; count: number }>()
+        listDeals.forEach((d) => {
+          if (d.appointer_id) {
+            const appointerData = d.appointer as { display_name: string } | null
+            const name = appointerData?.display_name || '不明'
+            if (!appointerCounts.has(d.appointer_id)) {
+              appointerCounts.set(d.appointer_id, { name, count: 0 })
+            }
+            appointerCounts.get(d.appointer_id)!.count += 1
+          }
+        })
+
+        return {
+          ...list,
+          closeRate: list.totalDeals > 0 ? list.wonDeals / list.totalDeals : 0,
+          topClosers: Array.from(closerCounts.values())
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 3),
+          topAppointers: Array.from(appointerCounts.values())
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 3),
+        }
+      }).sort((a, b) => b.totalDeals - a.totalDeals)
     },
     staleTime: 60 * 1000,
   })

@@ -70,7 +70,7 @@ const navItems: NavItem[] = [
     icon: BarChart3,
   },
   {
-    label: "営業代行抽出",
+    label: "営業代行管理",
     href: "/leads/outsourcing",
     icon: Filter,
   },
