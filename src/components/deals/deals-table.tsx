@@ -18,13 +18,14 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { InlineEditCell } from './inline-edit-cell'
 import { YomiSelectCell } from './yomi-select-cell'
 import { formatDate } from '@/lib/utils/format'
 import { PRODUCT_NAMES, type ProductKey } from '@/lib/constants/margins'
-import { ArrowUpDown, ArrowUp, ArrowDown, ExternalLink } from 'lucide-react'
+import { ArrowUpDown, ArrowUp, ArrowDown, ExternalLink, Clock, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
-import type { DealWithRelations, YomiStatus } from '@/types/deals'
+import type { DealWithRelations, DealFollowup, YomiStatus } from '@/types/deals'
 
 type Props = {
   deals: DealWithRelations[]
@@ -188,6 +189,84 @@ export function DealsTable({ deals, onInlineUpdate }: Props) {
             {row.original.notes || '-'}
           </div>
         ),
+      },
+      {
+        id: 'latest_followup',
+        header: '最終対応',
+        size: 120,
+        cell: ({ row }) => {
+          const followups = row.original.followups || []
+          const latest = followups.find((f: DealFollowup) => f.round === 'latest')
+          if (!latest || !latest.status) return <span className="text-xs text-muted-foreground">-</span>
+
+          const statusColors: Record<string, string> = {
+            'A': 'bg-red-100 text-red-800',
+            'B': 'bg-orange-100 text-orange-800',
+            'C': 'bg-blue-100 text-blue-800',
+            'ネタ': 'bg-purple-100 text-purple-800',
+            '代理店A': 'bg-emerald-100 text-emerald-800',
+            '失注': 'bg-gray-100 text-gray-800',
+            '受注': 'bg-green-100 text-green-800',
+            '没ネタ': 'bg-gray-100 text-gray-500',
+            '消滅': 'bg-gray-100 text-gray-400',
+          }
+
+          return (
+            <div className="flex flex-col gap-0.5">
+              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${statusColors[latest.status] || ''}`}>
+                {latest.status}
+              </Badge>
+              <span className="text-[10px] text-muted-foreground">
+                {latest.created_at ? new Date(latest.created_at).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' }) : ''}
+              </span>
+            </div>
+          )
+        },
+      },
+      {
+        id: 'next_action',
+        header: '次アクション',
+        size: 160,
+        cell: ({ row }) => {
+          const followups = row.original.followups || []
+          const latest = followups.find((f: DealFollowup) => f.round === 'latest')
+          if (!latest?.next_action) return <span className="text-xs text-muted-foreground">-</span>
+          return (
+            <div className="text-xs truncate max-w-[150px]" title={latest.next_action}>
+              {latest.next_action}
+            </div>
+          )
+        },
+      },
+      {
+        id: 'action_deadline',
+        header: '期限',
+        size: 100,
+        cell: ({ row }) => {
+          const followups = row.original.followups || []
+          const latest = followups.find((f: DealFollowup) => f.round === 'latest')
+          if (!latest?.next_action_date) return <span className="text-xs text-muted-foreground">-</span>
+
+          const deadline = new Date(latest.next_action_date)
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+          const diffDays = Math.floor((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+
+          let colorClass = 'text-muted-foreground'
+          if (diffDays < 0) colorClass = 'text-red-600 font-semibold'
+          else if (diffDays <= 1) colorClass = 'text-amber-600 font-medium'
+          else if (diffDays <= 3) colorClass = 'text-yellow-600'
+
+          return (
+            <div className="flex items-center gap-1">
+              {diffDays < 0 && <AlertCircle className="h-3 w-3 text-red-500" />}
+              {diffDays >= 0 && diffDays <= 1 && <Clock className="h-3 w-3 text-amber-500" />}
+              <span className={`text-xs ${colorClass}`}>
+                {deadline.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' })}
+              </span>
+            </div>
+          )
+        },
       },
       {
         id: 'actions',

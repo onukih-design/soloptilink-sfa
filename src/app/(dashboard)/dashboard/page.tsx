@@ -8,6 +8,7 @@ import { TodayActions } from '@/components/dashboard/today-actions'
 import { RecentDeals } from '@/components/dashboard/recent-deals'
 import { MonthlyProgressChart } from '@/components/dashboard/monthly-progress-chart'
 import { AnnualProgressBar } from '@/components/dashboard/annual-progress-bar'
+import { OverdueActions } from '@/components/dashboard/overdue-actions'
 import { ArrowRight } from 'lucide-react'
 
 /**
@@ -55,6 +56,8 @@ export default function DashboardPage() {
           <ArrowRight className="h-4 w-4" />
         </Link>
       </div>
+
+      <OverdueActions />
 
       <AnnualProgressBar data={data.annualSummary} />
 

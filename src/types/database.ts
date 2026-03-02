@@ -251,9 +251,13 @@ export type Database = {
         Row: {
           id: string;
           deal_id: string;
-          followup_date: string;
+          company_id?: string;
+          followup_date?: string;
           followup_type: string;
-          content: string;
+          content?: string;
+          notes: string | null;
+          status: string | null;
+          round: string;
           next_action: string | null;
           next_action_date: string | null;
           created_by: string | null;
@@ -262,9 +266,13 @@ export type Database = {
         Insert: {
           id?: string;
           deal_id: string;
-          followup_date: string;
+          company_id?: string;
+          followup_date?: string;
           followup_type: string;
-          content: string;
+          content?: string;
+          notes?: string | null;
+          status?: string | null;
+          round?: string;
           next_action?: string | null;
           next_action_date?: string | null;
           created_by?: string | null;
@@ -273,9 +281,13 @@ export type Database = {
         Update: {
           id?: string;
           deal_id?: string;
+          company_id?: string;
           followup_date?: string;
           followup_type?: string;
           content?: string;
+          notes?: string | null;
+          status?: string | null;
+          round?: string;
           next_action?: string | null;
           next_action_date?: string | null;
           created_by?: string | null;
