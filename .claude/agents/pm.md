@@ -278,3 +278,5 @@ Wave Final: [integration-tester x2] [deployer] [doc-writer]
 12. `npm run build` が成功する
 13. `docs/TEST_REPORT.md` が生成されている
 14. `docs/PLAN.md` の全タスクがチェック済み
+15. `docs/SESSION_DEVELOP.md` が生成されている（チェーン開発用サマリー）
+    - 実装した機能一覧、技術スタック、既知の制限事項、改善の余地を記載

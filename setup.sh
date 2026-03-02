@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-# SoloptiLink 自律開発環境 セットアップスクリプト
+# SoloptiLink 自律開発環境 セットアップスクリプト v5.2
 # 
 # 使い方:
 #   chmod +x setup.sh && ./setup.sh
@@ -11,12 +11,13 @@
 #   - .claude/ ディレクトリとhooksの配置
 #   - Playwrightテストの雛形生成
 #   - Git初期化
+#   - グローバルナレッジの初期化・インポート（v5.2）
 # ============================================================
 
 set -e
 
 echo "========================================"
-echo "  自律開発環境セットアップ"
+echo "  自律開発環境セットアップ v5.2"
 echo "========================================"
 echo ""
 
@@ -79,6 +80,11 @@ if [ -f ".claude/hooks/stop-check.sh" ]; then
     echo "  ✅ stop-check.sh に実行権限付与"
 else
     echo "  ⚠️  .claude/hooks/stop-check.sh が見つかりません"
+fi
+
+if [ -f "chain.sh" ]; then
+    chmod +x chain.sh
+    echo "  ✅ chain.sh に実行権限付与（チェーン開発）"
 fi
 
 echo ""
@@ -189,7 +195,7 @@ fi
 echo ""
 
 # --- 6. Git 初期化 ---
-echo "[6/7] Git を初期化..."
+echo "[6/8] Git を初期化..."
 
 if [ ! -d ".git" ]; then
     git init > /dev/null 2>&1
@@ -215,8 +221,87 @@ fi
 
 echo ""
 
-# --- 7. 確認 ---
-echo "[7/7] セットアップ完了!"
+# --- 7. グローバルナレッジ初期化（v5.2） ---
+echo "[7/8] グローバルナレッジを初期化..."
+
+GLOBAL_DIR="${HOME}/.soloptilink"
+GLOBAL_KNOWLEDGE_DIR="${GLOBAL_DIR}/knowledge"
+
+if [ ! -d "$GLOBAL_KNOWLEDGE_DIR" ]; then
+    mkdir -p "$GLOBAL_KNOWLEDGE_DIR"
+    
+    # 初期ファイル
+    cat > "${GLOBAL_KNOWLEDGE_DIR}/global-learned.md" << 'GLEARNEOF'
+# SoloptiLink グローバルナレッジ
+# 全プロジェクト横断で蓄積された知見
+GLEARNEOF
+
+    cat > "${GLOBAL_KNOWLEDGE_DIR}/global-calibration.md" << 'GCALEOF'
+# グローバルスコア履歴
+| 日付 | プロジェクト | ラウンド | スコア | 備考 |
+|------|------------|---------|--------|------|
+GCALEOF
+
+    touch "${GLOBAL_KNOWLEDGE_DIR}/projects.log"
+    
+    cat > "${GLOBAL_DIR}/config.sh" << 'GCONFIGEOF'
+# SoloptiLink グローバル設定
+AUTO_SYNC=true
+GLOBAL_MAX_SIZE=50000
+GLOBAL_INJECT_MAX_LINES=150
+GCONFIGEOF
+
+    echo "  ✅ グローバルナレッジ初期化完了: ${GLOBAL_DIR}"
+    echo "  ℹ️  全プロジェクトの知見が ~/.soloptilink/ に蓄積されます"
+else
+    echo "  ✅ グローバルナレッジ既存: ${GLOBAL_DIR}"
+    GLOBAL_SIZE=$(wc -c < "${GLOBAL_KNOWLEDGE_DIR}/global-learned.md" 2>/dev/null || echo 0)
+    PROJ_COUNT=$(wc -l < "${GLOBAL_KNOWLEDGE_DIR}/projects.log" 2>/dev/null || echo 0)
+    echo "  🧠 蓄積済み: ${GLOBAL_SIZE} bytes / ${PROJ_COUNT} プロジェクト"
+    
+    # 既存のグローバルナレッジをインポート
+    if [ "$GLOBAL_SIZE" -gt 50 ]; then
+        echo ""
+        echo "  📥 過去のプロジェクトの知見を検出しました。"
+        echo "     このプロジェクトに注入しますか？"
+        read -p "     [Y/n]: " import_answer
+        import_answer="${import_answer:-Y}"
+        if [[ "$import_answer" =~ ^[Yy]$ ]]; then
+            # chain.sh --import を使用
+            if [ -f "chain.sh" ] && [ -x "chain.sh" ]; then
+                ./chain.sh --import
+            else
+                # 直接インポート
+                local_learned="docs/knowledge/learned.md"
+                mkdir -p docs/knowledge
+                {
+                    echo "# 学習済みナレッジ"
+                    echo ""
+                    echo "---"
+                    echo "## [グローバルインポート] $(date +%Y-%m-%d)"
+                    tail -n +3 "${GLOBAL_KNOWLEDGE_DIR}/global-learned.md" | head -150
+                } > "$local_learned"
+                echo "  ✅ グローバルナレッジをインポートしました"
+            fi
+        else
+            echo "  ⏭️  スキップ（後で ./chain.sh --import でインポート可能）"
+        fi
+    fi
+fi
+
+# プロジェクト登録
+PROJECT_PATH=$(pwd)
+PROJECT_NAME=$(basename "$PROJECT_PATH")
+ENTRY="$(date +%Y-%m-%d) | ${PROJECT_NAME} | ${PROJECT_PATH}"
+if ! grep -qF "${PROJECT_PATH}" "${GLOBAL_KNOWLEDGE_DIR}/projects.log" 2>/dev/null; then
+    echo "$ENTRY" >> "${GLOBAL_KNOWLEDGE_DIR}/projects.log"
+    echo "  ✅ プロジェクト登録: ${PROJECT_NAME}"
+fi
+
+echo ""
+
+# --- 8. 確認 ---
+echo "[8/8] セットアップ完了!"
 echo ""
 echo "========================================"
 echo "  📁 ファイル構成"
@@ -244,5 +329,12 @@ echo "  3. 以下を入力:"
 echo '     @docs/REQUIREMENTS.md を読んで、このシステムを完成させてください。'
 echo '     CLAUDE.md に従って自律的に進めて。テスト全パスまで止まらないで。'
 echo ""
-echo "  ※ 詳しくは docs/INSTRUCTION_TEMPLATE.md を参照"
+echo "  ※ チェーン開発（推奨）:"
+echo '     ./chain.sh "タスク管理ツール作って"'
+echo ""
+echo "  ※ ナレッジ共有コマンド:"
+echo "     ./chain.sh --stats           ローカル統計"
+echo "     ./chain.sh --global-stats    全プロジェクト統計"
+echo "     ./chain.sh --sync            グローバルへ手動同期"
+echo "     ./chain.sh --import          グローバルからインポート"
 echo ""
