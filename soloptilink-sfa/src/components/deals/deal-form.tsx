@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -45,6 +45,30 @@ export function DealForm({ deal, onSubmit, isSubmitting }: Props) {
     contract_months: deal?.contract_months || null,
     memo: deal?.notes || null,
   })
+
+  // deal propが後から到着した場合にフォームstateを同期
+  useEffect(() => {
+    if (deal) {
+      setFormData({
+        deal_name: deal.deal_name || '',
+        company_id: deal.company_id || '',
+        contact_id: deal.contact_id || null,
+        product: deal.product || '',
+        yomi_status: (deal.yomi_status as DealFormValues['yomi_status']) || 'ネタ',
+        amount: deal.amount || 0,
+        monthly_amount: deal.monthly_amount || 0,
+        initial_amount: deal.initial_amount || 0,
+        closer_id: deal.closer_id || null,
+        appointer_id: deal.appointer_id || null,
+        list_id: deal.list_id || null,
+        expected_close_date: deal.expected_close_date || null,
+        closed_date: deal.closed_date || null,
+        contract_start_date: deal.contract_start_date || null,
+        contract_months: deal.contract_months || null,
+        memo: deal.notes || null,
+      })
+    }
+  }, [deal?.id])
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [showQuickAddCompany, setShowQuickAddCompany] = useState(false)

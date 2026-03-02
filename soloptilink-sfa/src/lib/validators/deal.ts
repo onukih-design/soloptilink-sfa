@@ -5,8 +5,8 @@ export const dealFormSchema = z.object({
     .string()
     .min(1, '案件名を入力してください')
     .max(200, '200文字以内で入力してください'),
-  company_id: z.string().uuid('企業を選択してください'),
-  contact_id: z.string().uuid().nullable().optional(),
+  company_id: z.string().min(1, '企業を選択してください'),
+  contact_id: z.string().min(1).nullable().optional(),
   product: z.string().min(1, '商品を選択してください'),
   yomi_status: z.enum(
     ['受注', 'Aヨミ', 'Bヨミ', 'Cヨミ', 'ネタ', '没ネタ', '失注', '消滅'],
@@ -29,9 +29,9 @@ export const dealFormSchema = z.object({
     .int()
     .min(0, '0以上の金額を入力してください')
     .default(0),
-  closer_id: z.string().uuid().nullable().optional(),
-  appointer_id: z.string().uuid().nullable().optional(),
-  list_id: z.string().uuid().nullable().optional(),
+  closer_id: z.string().min(1).nullable().optional(),
+  appointer_id: z.string().min(1).nullable().optional(),
+  list_id: z.string().min(1).nullable().optional(),
   expected_close_date: z.string().nullable().optional(),
   closed_date: z.string().nullable().optional(),
   contract_start_date: z.string().nullable().optional(),
@@ -46,7 +46,7 @@ export const dealFormSchema = z.object({
 export type DealFormValues = z.infer<typeof dealFormSchema>
 
 export const followupFormSchema = z.object({
-  deal_id: z.string().uuid(),
+  deal_id: z.string().min(1),
   followup_date: z.string().min(1, '日付を入力してください'),
   followup_type: z.enum(['電話', 'メール', '訪問', 'Web会議', 'その他'], {
     message: '種別を選択してください',
