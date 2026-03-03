@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { AiToolOrderWithRelations, SalesOutsourcingOrderWithRelations, MonthlyRevenueSummary } from '@/types/orders'
 import type { Tables } from '@/types/database'
 import { IS_DEMO_MODE } from '@/lib/demo-mode'
-import { MOCK_AI_TOOL_ORDERS, MOCK_COMPANIES, MOCK_MONTHLY_REVENUE } from '@/lib/mock-data'
+import { MOCK_AI_TOOL_ORDERS, MOCK_COMPANIES, MOCK_MONTHLY_REVENUE, MOCK_SALES_OUTSOURCING_ORDERS } from '@/lib/mock-data'
 
 const ORDERS_KEY = 'orders'
 const REVENUE_KEY = 'revenue'
@@ -59,9 +59,17 @@ export function useSalesOutsourcingOrders() {
   return useQuery({
     queryKey: [ORDERS_KEY, 'outsourcing'],
     queryFn: async () => {
-      // デモモード: 空配列を返す（営業代行受注データなし）
+      // デモモード: モックデータを返す
       if (IS_DEMO_MODE) {
-        return [] as SalesOutsourcingOrderWithRelations[]
+        return MOCK_SALES_OUTSOURCING_ORDERS.map((order) => ({
+          ...order,
+          company: MOCK_COMPANIES.find((c) => c.id === order.company_id) || {
+            id: '',
+            company_name: '不明',
+          },
+          closer: null,
+          appointer: null,
+        })) as unknown as SalesOutsourcingOrderWithRelations[]
       }
 
       // 通常モード

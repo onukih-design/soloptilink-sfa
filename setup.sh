@@ -1,340 +1,268 @@
-#!/bin/bash
-# ============================================================
-# SoloptiLink 自律開発環境 セットアップスクリプト v5.2
-# 
-# 使い方:
-#   chmod +x setup.sh && ./setup.sh
-#
-# 新しいプロジェクトを始めるとき、最初に1回だけ実行する。
-# これにより以下がセットアップされる:
-#   - Node.js / Playwright のインストール確認
-#   - .claude/ ディレクトリとhooksの配置
-#   - Playwrightテストの雛形生成
-#   - Git初期化
-#   - グローバルナレッジの初期化・インポート（v5.2）
-# ============================================================
+#!/usr/bin/env bash
+# ╔═══════════════════════════════════════════════════════════╗
+# ║  SoloptiLink Chain v10.0 - One-Click Setup               ║
+# ║  Smart Prompt × Scaffold × Parallel × Browser × Deploy   ║
+# ╚═══════════════════════════════════════════════════════════╝
+set -euo pipefail
 
-set -e
+readonly VERSION="10.0"
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo "========================================"
-echo "  自律開発環境セットアップ v5.2"
-echo "========================================"
+# カラー定義
+readonly RED='\033[0;31m' GREEN='\033[0;32m' YELLOW='\033[0;33m'
+readonly BLUE='\033[0;34m' PURPLE='\033[0;35m' CYAN='\033[0;36m'
+readonly BOLD='\033[1m' DIM='\033[2m' NC='\033[0m'
+
+# 結果トラッカー
+declare -a CHECK_RESULTS=()
+WARN_COUNT=0; FAIL_COUNT=0
+
+_result_ok()   { CHECK_RESULTS+=("${GREEN}OK${NC}  $1"); }
+_result_warn() { CHECK_RESULTS+=("${YELLOW}WARN${NC} $1"); WARN_COUNT=$((WARN_COUNT + 1)); }
+_result_fail() { CHECK_RESULTS+=("${RED}FAIL${NC} $1"); FAIL_COUNT=$((FAIL_COUNT + 1)); }
+
+# バナー
 echo ""
+echo -e "${BOLD}${PURPLE}"
+echo "  ╔════════════════════════════════════════════════════════╗"
+echo "  ║                                                        ║"
+echo "  ║   SoloptiLink Chain v${VERSION} - Setup                  ║"
+echo "  ║   一言で完璧なシステムを自律構築する                  ║"
+echo "  ║                                                        ║"
+echo "  ╚════════════════════════════════════════════════════════╝"
+echo -e "${NC}"
 
-# --- 1. 前提条件チェック ---
-echo "[1/6] 前提条件チェック..."
-
-# Node.js
-if ! command -v node &> /dev/null; then
-    echo "❌ Node.js が見つかりません。インストールしてください。"
-    echo "   https://nodejs.org/"
-    exit 1
-fi
-echo "  ✅ Node.js $(node --version)"
-
-# npm
-if ! command -v npm &> /dev/null; then
-    echo "❌ npm が見つかりません。"
-    exit 1
-fi
-echo "  ✅ npm $(npm --version)"
-
-# Claude Code
-if ! command -v claude &> /dev/null; then
-    echo "⚠️  Claude Code が見つかりません。以下でインストール:"
-    echo "   npm install -g @anthropic-ai/claude-code"
-fi
-
-# git
-if ! command -v git &> /dev/null; then
-    echo "❌ git が見つかりません。"
-    exit 1
-fi
-echo "  ✅ git $(git --version | cut -d' ' -f3)"
-
-# jq (hooks で使用)
-if ! command -v jq &> /dev/null; then
-    echo "⚠️  jq が見つかりません。hooks の動作に必要です。"
-    echo "   brew install jq  (macOS)"
-    echo "   sudo apt install jq  (Ubuntu)"
-fi
-
-echo ""
-
-# --- 2. ディレクトリ構造作成 ---
-echo "[2/6] ディレクトリ構造を作成..."
-
-mkdir -p docs
-mkdir -p src
-mkdir -p tests/e2e
-mkdir -p .claude/hooks
-
-echo "  ✅ ディレクトリ作成完了"
-echo ""
-
-# --- 3. Hooks 実行権限付与 ---
-echo "[3/6] Hooks に実行権限を付与..."
-
-if [ -f ".claude/hooks/stop-check.sh" ]; then
-    chmod +x .claude/hooks/stop-check.sh
-    echo "  ✅ stop-check.sh に実行権限付与"
+# [1/10] Claude Code CLI チェック
+echo -e "${BOLD}[1/10] Claude Code CLI チェック...${NC}"
+if command -v claude &>/dev/null; then
+    claude_ver=$(claude --version 2>/dev/null || echo "installed")
+    echo -e "  ${GREEN}OK${NC} Claude Code: ${claude_ver}"
+    _result_ok "Claude Code CLI"
 else
-    echo "  ⚠️  .claude/hooks/stop-check.sh が見つかりません"
+    echo -e "  ${YELLOW}WARN${NC} Claude Code CLI が見つかりません"
+    echo -e "  ${DIM}  インストール: npm install -g @anthropic-ai/claude-code${NC}"
+    _result_warn "Claude Code CLI (未インストール)"
 fi
 
-if [ -f "chain.sh" ]; then
-    chmod +x chain.sh
-    echo "  ✅ chain.sh に実行権限付与（チェーン開発）"
-fi
-
-echo ""
-
-# --- 4. Playwright セットアップ ---
-echo "[4/6] Playwright をセットアップ..."
-
-# package.json がなければ初期化
-if [ ! -f "package.json" ]; then
-    npm init -y > /dev/null 2>&1
-    echo "  ✅ package.json を初期化"
-fi
-
-# Playwright インストール
-if ! npx playwright --version &> /dev/null 2>&1; then
-    echo "  📦 Playwright をインストール中..."
-    npm install -D @playwright/test > /dev/null 2>&1
-    npx playwright install chromium > /dev/null 2>&1
-    echo "  ✅ Playwright インストール完了"
-else
-    echo "  ✅ Playwright $(npx playwright --version 2>/dev/null) インストール済み"
-fi
-
-# playwright.config.ts 生成
-if [ ! -f "playwright.config.ts" ]; then
-    cat > playwright.config.ts << 'PLAYWRIGHT_CONFIG'
-import { defineConfig, devices } from '@playwright/test';
-
-export default defineConfig({
-  testDir: './tests/e2e',
-  fullyParallel: true,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 1,
-  workers: process.env.CI ? 1 : undefined,
-  reporter: 'html',
-  timeout: 30000,
-
-  use: {
-    baseURL: process.env.BASE_URL || 'http://localhost:3000',
-    trace: 'on-first-retry',
-    screenshot: 'only-on-failure',
-  },
-
-  projects: [
-    {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
-  ],
-
-  // 開発サーバーを自動起動
-  webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:3000',
-    reuseExistingServer: !process.env.CI,
-    timeout: 30000,
-  },
-});
-PLAYWRIGHT_CONFIG
-    echo "  ✅ playwright.config.ts を生成"
-fi
-
-# サンプルテスト生成
-if [ ! -f "tests/e2e/health.spec.ts" ]; then
-    cat > tests/e2e/health.spec.ts << 'HEALTH_TEST'
-import { test, expect } from '@playwright/test';
-
-test.describe('ヘルスチェック', () => {
-  test('トップページが正常に表示される', async ({ page }) => {
-    // コンソールエラーを収集
-    const errors: string[] = [];
-    page.on('console', msg => {
-      if (msg.type() === 'error') {
-        errors.push(msg.text());
-      }
-    });
-
-    // ページにアクセス
-    const response = await page.goto('/');
-    
-    // HTTPステータスが正常
-    expect(response?.status()).toBeLessThan(400);
-    
-    // ページが表示される
-    await expect(page.locator('body')).toBeVisible();
-    
-    // コンソールエラーがない
-    expect(errors).toEqual([]);
-  });
-});
-HEALTH_TEST
-    echo "  ✅ テスト雛形を生成: tests/e2e/health.spec.ts"
-fi
-
-echo ""
-
-# --- 5. Playwright MCP セットアップ ---
-echo "[5/7] Playwright MCP を確認..."
-
-if [ -f ".mcp.json" ]; then
-    echo "  ✅ .mcp.json 設定済み（Playwright MCP）"
-    echo "  ℹ️  Claude Codeが直接ブラウザを操作してテストできます"
-else
-    echo "  ⚠️  .mcp.json が見つかりません。手動でPlaywright MCPを追加:"
-    echo '     claude mcp add playwright -- npx @playwright/mcp@latest'
-fi
-
-echo ""
-
-# --- 6. Git 初期化 ---
-echo "[6/8] Git を初期化..."
-
-if [ ! -d ".git" ]; then
-    git init > /dev/null 2>&1
-    echo "  ✅ git init 完了"
-fi
-
-# .gitignore
-if [ ! -f ".gitignore" ]; then
-    cat > .gitignore << 'GITIGNORE'
-node_modules/
-dist/
-build/
-.env
-*.log
-test-results/
-playwright-report/
-.DS_Store
-__pycache__/
-*.pyc
-GITIGNORE
-    echo "  ✅ .gitignore を生成"
-fi
-
-echo ""
-
-# --- 7. グローバルナレッジ初期化（v5.2） ---
-echo "[7/8] グローバルナレッジを初期化..."
-
-GLOBAL_DIR="${HOME}/.soloptilink"
-GLOBAL_KNOWLEDGE_DIR="${GLOBAL_DIR}/knowledge"
-
-if [ ! -d "$GLOBAL_KNOWLEDGE_DIR" ]; then
-    mkdir -p "$GLOBAL_KNOWLEDGE_DIR"
-    
-    # 初期ファイル
-    cat > "${GLOBAL_KNOWLEDGE_DIR}/global-learned.md" << 'GLEARNEOF'
-# SoloptiLink グローバルナレッジ
-# 全プロジェクト横断で蓄積された知見
-GLEARNEOF
-
-    cat > "${GLOBAL_KNOWLEDGE_DIR}/global-calibration.md" << 'GCALEOF'
-# グローバルスコア履歴
-| 日付 | プロジェクト | ラウンド | スコア | 備考 |
-|------|------------|---------|--------|------|
-GCALEOF
-
-    touch "${GLOBAL_KNOWLEDGE_DIR}/projects.log"
-    
-    cat > "${GLOBAL_DIR}/config.sh" << 'GCONFIGEOF'
-# SoloptiLink グローバル設定
-AUTO_SYNC=true
-GLOBAL_MAX_SIZE=50000
-GLOBAL_INJECT_MAX_LINES=150
-GCONFIGEOF
-
-    echo "  ✅ グローバルナレッジ初期化完了: ${GLOBAL_DIR}"
-    echo "  ℹ️  全プロジェクトの知見が ~/.soloptilink/ に蓄積されます"
-else
-    echo "  ✅ グローバルナレッジ既存: ${GLOBAL_DIR}"
-    GLOBAL_SIZE=$(wc -c < "${GLOBAL_KNOWLEDGE_DIR}/global-learned.md" 2>/dev/null || echo 0)
-    PROJ_COUNT=$(wc -l < "${GLOBAL_KNOWLEDGE_DIR}/projects.log" 2>/dev/null || echo 0)
-    echo "  🧠 蓄積済み: ${GLOBAL_SIZE} bytes / ${PROJ_COUNT} プロジェクト"
-    
-    # 既存のグローバルナレッジをインポート
-    if [ "$GLOBAL_SIZE" -gt 50 ]; then
-        echo ""
-        echo "  📥 過去のプロジェクトの知見を検出しました。"
-        echo "     このプロジェクトに注入しますか？"
-        read -p "     [Y/n]: " import_answer
-        import_answer="${import_answer:-Y}"
-        if [[ "$import_answer" =~ ^[Yy]$ ]]; then
-            # chain.sh --import を使用
-            if [ -f "chain.sh" ] && [ -x "chain.sh" ]; then
-                ./chain.sh --import
-            else
-                # 直接インポート
-                local_learned="docs/knowledge/learned.md"
-                mkdir -p docs/knowledge
-                {
-                    echo "# 学習済みナレッジ"
-                    echo ""
-                    echo "---"
-                    echo "## [グローバルインポート] $(date +%Y-%m-%d)"
-                    tail -n +3 "${GLOBAL_KNOWLEDGE_DIR}/global-learned.md" | head -150
-                } > "$local_learned"
-                echo "  ✅ グローバルナレッジをインポートしました"
-            fi
-        else
-            echo "  ⏭️  スキップ（後で ./chain.sh --import でインポート可能）"
-        fi
+# [2/10] Python3 チェック
+echo -e "${BOLD}[2/10] Python3 チェック...${NC}"
+if command -v python3 &>/dev/null; then
+    py_ver=$(python3 --version 2>&1 | awk '{print $2}')
+    py_major=$(echo "$py_ver" | cut -d. -f1)
+    py_minor=$(echo "$py_ver" | cut -d. -f2)
+    if (( py_major >= 3 && py_minor >= 8 )); then
+        echo -e "  ${GREEN}OK${NC} Python ${py_ver}"
+        _result_ok "Python3 (${py_ver})"
+    else
+        echo -e "  ${YELLOW}WARN${NC} Python ${py_ver} (3.8+ 推奨)"
+        _result_warn "Python3 (${py_ver}, 3.8+ 推奨)"
     fi
-fi
-
-# プロジェクト登録
-PROJECT_PATH=$(pwd)
-PROJECT_NAME=$(basename "$PROJECT_PATH")
-ENTRY="$(date +%Y-%m-%d) | ${PROJECT_NAME} | ${PROJECT_PATH}"
-if ! grep -qF "${PROJECT_PATH}" "${GLOBAL_KNOWLEDGE_DIR}/projects.log" 2>/dev/null; then
-    echo "$ENTRY" >> "${GLOBAL_KNOWLEDGE_DIR}/projects.log"
-    echo "  ✅ プロジェクト登録: ${PROJECT_NAME}"
-fi
-
-echo ""
-
-# --- 8. 確認 ---
-echo "[8/8] セットアップ完了!"
-echo ""
-echo "========================================"
-echo "  📁 ファイル構成"
-echo "========================================"
-echo ""
-
-# ツリー表示（treeがなければfind）
-if command -v tree &> /dev/null; then
-    tree -L 2 -a --dirsfirst -I 'node_modules|.git'
 else
-    find . -maxdepth 2 -not -path '*/node_modules/*' -not -path '*/.git/*' -not -name '.git' | sort | head -30
+    echo -e "  ${YELLOW}WARN${NC} Python3 未検出 (RAGエンジンに必要)"
+    echo -e "  ${DIM}  --no-rag モードで動作可能${NC}"
+    _result_warn "Python3 (未インストール)"
 fi
 
+# [3/10] Git チェック
+echo -e "${BOLD}[3/10] Git チェック...${NC}"
+if command -v git &>/dev/null; then
+    git_ver=$(git --version | head -1)
+    echo -e "  ${GREEN}OK${NC} ${git_ver}"
+    _result_ok "Git"
+else
+    echo -e "  ${RED}FAIL${NC} Git が見つかりません (必須)"
+    _result_fail "Git (未インストール)"
+fi
+
+# [4/10] Bash バージョンチェック
+echo -e "${BOLD}[4/10] Bash バージョンチェック...${NC}"
+bash_ver="${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"
+if (( BASH_VERSINFO[0] >= 4 )); then
+    echo -e "  ${GREEN}OK${NC} Bash ${bash_ver}"
+    _result_ok "Bash (${bash_ver})"
+else
+    echo -e "  ${YELLOW}WARN${NC} Bash ${bash_ver} (4.0+ 推奨)"
+    if [[ -x /opt/homebrew/bin/bash ]]; then
+        hb_ver=$(/opt/homebrew/bin/bash --version | head -1 | grep -oE '[0-9]+\.[0-9]+' | head -1)
+        echo -e "  ${CYAN}TIP${NC}  /opt/homebrew/bin/bash (${hb_ver}) が利用可能です"
+        echo -e "  ${DIM}  /opt/homebrew/bin/bash ./chain.sh で実行してください${NC}"
+    else
+        echo -e "  ${DIM}  アップグレード: brew install bash${NC}"
+    fi
+    _result_warn "Bash (${bash_ver}, 4.0+ 推奨)"
+fi
+
+# [5/10] Node.js チェック (v8.0 新規)
+echo -e "${BOLD}[5/10] Node.js チェック...${NC}"
+if command -v node &>/dev/null; then
+    node_ver=$(node --version 2>/dev/null)
+    echo -e "  ${GREEN}OK${NC} Node.js ${node_ver}"
+    _result_ok "Node.js (${node_ver})"
+else
+    echo -e "  ${YELLOW}WARN${NC} Node.js 未検出 (Web開発プロジェクトで推奨)"
+    _result_warn "Node.js (未インストール)"
+fi
+if command -v npm &>/dev/null; then
+    npm_ver=$(npm --version 2>/dev/null)
+    echo -e "  ${GREEN}OK${NC} npm ${npm_ver}"
+    _result_ok "npm (${npm_ver})"
+else
+    echo -e "  ${YELLOW}WARN${NC} npm 未検出"
+    _result_warn "npm (未インストール)"
+fi
+
+# [6/10] ディレクトリ構造の初期化
+echo -e "${BOLD}[6/10] ディレクトリ構造の初期化...${NC}"
+dirs_created=0
+for dir in docs/knowledge docs/chain-logs docs/chain-logs/checkpoints \
+    plugins/agents plugins/rules plugins/hooks plugins/templates plugins/pipelines; do
+    if [[ ! -d "${SCRIPT_DIR}/${dir}" ]]; then
+        mkdir -p "${SCRIPT_DIR}/${dir}"
+        dirs_created=$((dirs_created + 1))
+    fi
+done
+if [[ ! -d "${HOME}/.soloptilink/knowledge" ]]; then
+    mkdir -p "${HOME}/.soloptilink/knowledge"
+    dirs_created=$((dirs_created + 1))
+fi
+if (( dirs_created > 0 )); then
+    echo -e "  ${GREEN}OK${NC} ${dirs_created} ディレクトリ作成"
+else
+    echo -e "  ${GREEN}OK${NC} ディレクトリ構造は既存"
+fi
+_result_ok "ディレクトリ構造"
+
+# [7/10] 実行権限の設定
+echo -e "${BOLD}[7/10] 実行権限の設定...${NC}"
+[[ -f "${SCRIPT_DIR}/chain.sh" ]] && chmod +x "${SCRIPT_DIR}/chain.sh"
+chmod +x "${SCRIPT_DIR}"/tools/*.py 2>/dev/null || true
+chmod +x "${SCRIPT_DIR}"/lib/*.sh   2>/dev/null || true
+echo -e "  ${GREEN}OK${NC} chain.sh, tools/*.py, lib/*.sh"
+_result_ok "実行権限"
+
+# [8/10] Git リポジトリ チェック
+echo -e "${BOLD}[8/10] Git リポジトリ チェック...${NC}"
+cd "${SCRIPT_DIR}"
+if [[ ! -d ".git" ]]; then
+    git init -q
+    git add -A
+    git commit -q -m "initial: SoloptiLink Chain v${VERSION} setup" --allow-empty
+    echo -e "  ${GREEN}OK${NC} Git リポジトリを初期化しました"
+    _result_ok "Git リポジトリ (新規初期化)"
+else
+    echo -e "  ${GREEN}OK${NC} Git リポジトリ既存"
+    _result_ok "Git リポジトリ (既存)"
+fi
+
+# [9/10] RAG初期インデックス構築
+echo -e "${BOLD}[9/10] RAG初期インデックス構築...${NC}"
+if command -v python3 &>/dev/null && [[ -f "${SCRIPT_DIR}/tools/rag-engine.py" ]]; then
+    if python3 "${SCRIPT_DIR}/tools/rag-engine.py" index 2>/dev/null; then
+        echo -e "  ${GREEN}OK${NC} RAGインデックス構築完了"
+        _result_ok "RAGインデックス"
+    else
+        echo -e "  ${YELLOW}WARN${NC} RAGインデックス構築スキップ (後で --rag-index で実行可能)"
+        _result_warn "RAGインデックス"
+    fi
+else
+    echo -e "  ${YELLOW}WARN${NC} Python3 または rag-engine.py 未検出 → RAG無効"
+    _result_warn "RAGインデックス (スキップ)"
+fi
+if [[ -n "${DEEPSEEK_API_KEY:-}" ]]; then
+    echo -e "  ${GREEN}OK${NC} DEEPSEEK_API_KEY: 設定済み (ベクトル検索有効)"
+else
+    echo -e "  ${DIM}  DEEPSEEK_API_KEY 未設定 → BM25フォールバック検索${NC}"
+    echo -e "  ${DIM}  有効化: export DEEPSEEK_API_KEY=your_key${NC}"
+fi
+
+# [10/10] v7-v10 全モジュール検証
+echo -e "${BOLD}[10/10] v7.0〜v10.0 全モジュール検証...${NC}"
+v8_modules=(
+    "dag-pipeline.sh:DAG動的パイプライン:v7.0"
+    "realtime-learn.sh:リアルタイム学習:v7.0"
+    "url-analyzer.sh:URL解析エンジン:v8.0"
+    "validator.sh:5層バリデーション:v8.0"
+    "qa-engine.sh:網羅的QAエンジン:v8.0"
+    "healer.sh:継続的自動修復:v8.0"
+    "checkpoint.sh:チェックポイント管理:v8.0"
+    "prompt-expander.sh:スマートプロンプト展開:v9.0"
+    "scaffolder.sh:プロジェクトスキャフォルダー:v9.0"
+    "file-writer.sh:インテリジェントファイルライター:v9.0"
+    "parallel-exec.sh:並列実行エンジン:v10.0"
+    "browser-test.sh:ブラウザテスト:v10.0"
+    "auto-deploy.sh:自動デプロイ:v10.0"
+)
+mod_ok=0; mod_fail=0
+for entry in "${v8_modules[@]}"; do
+    IFS=':' read -r file label ver <<< "$entry"
+    filepath="${SCRIPT_DIR}/lib/${file}"
+    if [[ -f "$filepath" ]]; then
+        if bash -n "$filepath" 2>/dev/null; then
+            echo -e "  ${GREEN}OK${NC} [${ver}] ${label} (${file})"
+            mod_ok=$((mod_ok + 1))
+        else
+            echo -e "  ${RED}FAIL${NC} [${ver}] ${label} - 構文エラー"
+            mod_fail=$((mod_fail + 1))
+        fi
+    else
+        echo -e "  ${RED}FAIL${NC} [${ver}] ${label} - ファイル未検出"
+        mod_fail=$((mod_fail + 1))
+    fi
+done
+if (( mod_fail == 0 )); then
+    echo -e "  ${GREEN}全 ${mod_ok} モジュール正常${NC}"
+    _result_ok "v8.0 モジュール (${mod_ok}/${mod_ok})"
+else
+    echo -e "  ${YELLOW}${mod_ok} 正常 / ${mod_fail} 失敗${NC}"
+    _result_warn "v8.0 モジュール (${mod_ok}/$((mod_ok + mod_fail)))"
+fi
+
+# 最終サマリー
 echo ""
-echo "========================================"
-echo "  🚀 使い方"
-echo "========================================"
+echo -e "${BOLD}${PURPLE}╔════════════════════════════════════════════════════════╗${NC}"
+echo -e "${BOLD}${PURPLE}║          SoloptiLink Chain v${VERSION} - Setup Result         ║${NC}"
+echo -e "${BOLD}${PURPLE}╠════════════════════════════════════════════════════════╣${NC}"
+for r in "${CHECK_RESULTS[@]}"; do
+    printf "  ${PURPLE}║${NC} %-60b${PURPLE}║${NC}\n" "$r"
+done
+echo -e "${BOLD}${PURPLE}╠════════════════════════════════════════════════════════╣${NC}"
+if (( FAIL_COUNT == 0 && WARN_COUNT == 0 )); then
+    echo -e "${BOLD}${PURPLE}║${NC}  ${GREEN}ALL CLEAR - セットアップ完了${NC}                          ${PURPLE}║${NC}"
+elif (( FAIL_COUNT == 0 )); then
+    echo -e "${BOLD}${PURPLE}║${NC}  ${YELLOW}WARN x${WARN_COUNT} - 一部警告あり（動作可能）${NC}                   ${PURPLE}║${NC}"
+else
+    echo -e "${BOLD}${PURPLE}║${NC}  ${RED}FAIL x${FAIL_COUNT} / WARN x${WARN_COUNT} - 要確認${NC}                        ${PURPLE}║${NC}"
+fi
+echo -e "${BOLD}${PURPLE}╚════════════════════════════════════════════════════════╝${NC}"
 echo ""
-echo "  1. 要件定義書を docs/REQUIREMENTS.md に配置"
+echo -e "${BOLD}v10.0 使い方:${NC}"
 echo ""
-echo "  2. Claude Code を起動:"
-echo "     claude"
+echo -e "  ${CYAN}# 一言で完璧構築 (v9.0+ メイン機能)${NC}"
+echo -e "  ./chain.sh \"CRM作って\""
+echo -e "  ./chain.sh \"家計簿アプリ作って\""
+echo -e "  ./chain.sh \"タスク管理ツール作って\" --deploy"
 echo ""
-echo "  3. 以下を入力:"
-echo '     @docs/REQUIREMENTS.md を読んで、このシステムを完成させてください。'
-echo '     CLAUDE.md に従って自律的に進めて。テスト全パスまで止まらないで。'
+echo -e "  ${CYAN}# URL駆動開発 (v8.0)${NC}"
+echo -e "  ./chain.sh --url \"https://example.com\" \"このサイトを参考にシステム構築\""
+echo -e "  ./chain.sh --url \"https://a.com\" --url \"https://b.com\" \"2サイト統合\""
 echo ""
-echo "  ※ チェーン開発（推奨）:"
-echo '     ./chain.sh "タスク管理ツール作って"'
+echo -e "  ${CYAN}# v10.0 新機能${NC}"
+echo -e "  ./chain.sh \"チャットアプリ\" --parallel           # 並列実行"
+echo -e "  ./chain.sh \"ECサイト\" --browser-test             # ブラウザテスト"
+echo -e "  ./chain.sh \"ブログ\" --deploy                     # 自動デプロイ"
 echo ""
-echo "  ※ ナレッジ共有コマンド:"
-echo "     ./chain.sh --stats           ローカル統計"
-echo "     ./chain.sh --global-stats    全プロジェクト統計"
-echo "     ./chain.sh --sync            グローバルへ手動同期"
-echo "     ./chain.sh --import          グローバルからインポート"
+echo -e "  ${CYAN}# バリデーション & 自動修復${NC}"
+echo -e "  ./chain.sh --validate ./src"
+echo -e "  ./chain.sh --validate ./src --auto-fix"
+echo ""
+echo -e "  ${CYAN}# チェックポイント再開${NC}"
+echo -e "  ./chain.sh --resume"
+echo -e "  ./chain.sh --checkpoints"
+echo ""
+echo -e "  ${CYAN}# RAG / メトリクス${NC}"
+echo -e "  ./chain.sh --rag-search \"認証 エラー\""
+echo -e "  ./chain.sh --metrics"
+echo -e "  ./chain.sh --help"
+echo ""
+echo -e "${PURPLE}SoloptiLink Chain v${VERSION}${NC} | ${DIM}一言で完璧なシステムを自律構築${NC}"
 echo ""

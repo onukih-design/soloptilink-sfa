@@ -11,6 +11,7 @@ import {
   MOCK_COMPANIES,
   MOCK_LISTS,
   MOCK_CONTACTS,
+  MOCK_FOLLOWUPS,
 } from '@/lib/mock-data'
 
 const DEALS_KEY = 'deals'
@@ -36,7 +37,7 @@ export function useDeals(filters: DealFilters, sort: DealSort) {
           appointer:
             MOCK_USERS.find((u) => u.id === deal.appointer_id) || null,
           list: MOCK_LISTS.find((l) => l.id === deal.list_id) || null,
-          followups: [],
+          followups: MOCK_FOLLOWUPS.filter((f) => f.deal_id === deal.id),
         }))
 
         // Apply filters
@@ -169,7 +170,9 @@ export function useDeal(id: string) {
           closer: MOCK_USERS.find((u) => u.id === deal.closer_id) || null,
           appointer: MOCK_USERS.find((u) => u.id === deal.appointer_id) || null,
           list: MOCK_LISTS.find((l) => l.id === deal.list_id) || null,
-          followups: [],
+          followups: MOCK_FOLLOWUPS.filter((f) => f.deal_id === deal.id).sort((a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          ),
         } as unknown as DealWithRelations
       }
 

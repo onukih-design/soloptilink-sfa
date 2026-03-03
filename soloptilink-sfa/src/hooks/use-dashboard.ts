@@ -17,6 +17,7 @@ type DealRow = {
   monthly_amount: number | null
   closed_date: string | null
   updated_at: string
+  notes: string | null
   company: { company_name: string } | null
 }
 
@@ -67,6 +68,7 @@ export type DashboardSummary = {
     yomiStatus: string
     amount: number
     updatedAt: string
+    notes: string
   }>
   monthlyRevenue: {
     currentMonth: number
@@ -150,6 +152,7 @@ export function useDashboardSummary() {
           yomiStatus: d.yomi_status || '',
           amount: d.amount || 0,
           updatedAt: d.updated_at || '',
+          notes: d.notes || '',
         }))
 
         // 月次売上集計
@@ -245,7 +248,7 @@ export function useDashboardSummary() {
         // アクティブな案件（失注・消滅を除く）
         supabase!
           .from('deals')
-          .select('id, deal_number, deal_name, yomi_status, amount, monthly_amount, closed_date, updated_at, company:companies(company_name)')
+          .select('id, deal_number, deal_name, yomi_status, amount, monthly_amount, closed_date, updated_at, notes, company:companies(company_name)')
           .not('yomi_status', 'in', '("失注","消滅")')
           .order('updated_at', { ascending: false })
           .returns<DealRow[]>(),
@@ -320,6 +323,7 @@ export function useDashboardSummary() {
         yomiStatus: d.yomi_status || '',
         amount: d.amount || 0,
         updatedAt: d.updated_at || '',
+        notes: d.notes || '',
       }))
 
       // 月次売上集計

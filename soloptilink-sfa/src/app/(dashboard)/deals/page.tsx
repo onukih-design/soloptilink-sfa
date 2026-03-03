@@ -5,6 +5,7 @@ import { useDeals, useInlineUpdateDeal } from '@/hooks/use-deals'
 import { useFilterStore } from '@/stores/filter-store'
 import { DealsFilterBar } from '@/components/deals/deals-filter-bar'
 import { DealsTable } from '@/components/deals/deals-table'
+import { DealsPipeline } from '@/components/deals/deals-pipeline'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import Link from 'next/link'
@@ -14,6 +15,7 @@ import type { DealSort } from '@/types/deals'
 export default function DealsPage() {
   const filters = useFilterStore()
   const [sort] = useState<DealSort>({ key: 'updated_at', order: 'desc' })
+  const [view, setView] = useState<'table' | 'pipeline'>('table')
 
   const { data: deals, isLoading, error } = useDeals(
     {
@@ -71,12 +73,36 @@ export default function DealsPage() {
             案件の管理・進捗確認を行います
           </p>
         </div>
-        <Link href="/deals/new">
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            新規案件
-          </Button>
-        </Link>
+        <div className="flex items-center gap-3">
+          <div className="flex border rounded-md">
+            <button
+              className={`px-3 py-1.5 text-sm rounded-l-md transition-colors ${
+                view === 'table'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'hover:bg-muted'
+              }`}
+              onClick={() => setView('table')}
+            >
+              テーブル
+            </button>
+            <button
+              className={`px-3 py-1.5 text-sm rounded-r-md transition-colors ${
+                view === 'pipeline'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'hover:bg-muted'
+              }`}
+              onClick={() => setView('pipeline')}
+            >
+              パイプライン
+            </button>
+          </div>
+          <Link href="/deals/new">
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              新規案件
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <DealsFilterBar />
@@ -87,6 +113,8 @@ export default function DealsPage() {
             <div key={i} className="h-10 bg-muted animate-pulse rounded" />
           ))}
         </div>
+      ) : view === 'pipeline' ? (
+        <DealsPipeline deals={deals || []} />
       ) : (
         <DealsTable
           deals={deals || []}

@@ -323,14 +323,21 @@ export default function CompanyDetailPage() {
                       <Link
                         key={deal.id}
                         href={`/deals/${deal.id}`}
-                        className="flex items-center justify-between p-2 rounded hover:bg-muted/50 transition-colors"
+                        className="block p-2 rounded hover:bg-muted/50 transition-colors"
                       >
-                        <span className="text-sm font-medium">
-                          {deal.deal_name}
-                        </span>
-                        <Badge variant="outline" className="text-xs">
-                          {deal.yomi_status}
-                        </Badge>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">
+                            {deal.deal_name}
+                          </span>
+                          <Badge variant="outline" className="text-xs">
+                            {deal.yomi_status}
+                          </Badge>
+                        </div>
+                        {deal.notes && (
+                          <p className="text-xs text-muted-foreground mt-1 truncate">
+                            {deal.notes}
+                          </p>
+                        )}
                       </Link>
                     ))}
                   </div>

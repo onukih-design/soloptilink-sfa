@@ -14,6 +14,9 @@ import {
   Filter,
   Settings,
   Crown,
+  Gauge,
+  Target,
+  GitBranch,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +36,21 @@ const navItems: NavItem[] = [
     label: "経営ダッシュボード",
     href: "/executive",
     icon: Crown,
+  },
+  {
+    label: "統合KPI",
+    href: "/kpi",
+    icon: Gauge,
+  },
+  {
+    label: "予実管理",
+    href: "/forecast",
+    icon: Target,
+  },
+  {
+    label: "ファネル分析",
+    href: "/funnel",
+    icon: GitBranch,
   },
   {
     label: "会社管理",
@@ -70,7 +88,7 @@ const navItems: NavItem[] = [
     icon: BarChart3,
   },
   {
-    label: "営業代行抽出",
+    label: "営業代行管理",
     href: "/leads/outsourcing",
     icon: Filter,
   },

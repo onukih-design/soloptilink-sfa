@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { PRODUCT_OPTIONS } from '@/lib/constants/margins'
 import { YOMI_STATUSES } from '@/lib/constants/yomi'
 import { formatPercent } from '@/lib/utils/format'
-import { Palette, Package, Info, List, Plus, Pencil, Trash2, Link2 } from 'lucide-react'
+import { Palette, Package, Info, List, Plus, Pencil, Trash2, Link2, Upload } from 'lucide-react'
 import { useListAll, useDeleteList } from '@/hooks/use-lists'
 import { ListFormDialog } from '@/components/settings/list-form-dialog'
 import type { Tables } from '@/types/database'
@@ -162,6 +162,22 @@ export default function SettingsPage() {
             <Button variant="outline">
               連携設定を開く
             </Button>
+          </Link>
+        </CardContent>
+      </Card>
+
+      {/* CSVインポート */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Upload className="h-4 w-4" />
+            CSVインポート
+          </CardTitle>
+          <CardDescription>CSVファイルから会社・案件・連絡先データを一括インポート</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Link href="/settings/csv-import">
+            <Button variant="outline">CSVインポート画面へ</Button>
           </Link>
         </CardContent>
       </Card>
