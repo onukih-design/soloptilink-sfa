@@ -19,9 +19,13 @@ import {
 } from '@/components/ui/table'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { useSalesOutsourcingOrders } from '@/hooks/use-orders'
 import { formatCurrency, formatDate, formatPercent } from '@/lib/utils/format'
-import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { ArrowUpDown, ArrowUp, ArrowDown, Plus } from 'lucide-react'
+import { CompanyLink } from '@/components/ui/company-link'
+import { OutsourcingOrderForm, type OutsourcingOrderFormData } from '@/components/orders/outsourcing-order-form'
+import { useCreateSalesOutsourcingOrder } from '@/hooks/use-orders'
 import type { SalesOutsourcingOrderWithRelations } from '@/types/orders'
 
 const statusColors: Record<string, string> = {
@@ -34,6 +38,34 @@ const statusColors: Record<string, string> = {
 export default function OutsourcingOrdersPage() {
   const { data: orders, isLoading, error } = useSalesOutsourcingOrders()
   const [sorting, setSorting] = useState<SortingState>([])
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const createOrder = useCreateSalesOutsourcingOrder()
+
+  const handleCreateOrder = (data: OutsourcingOrderFormData) => {
+    createOrder.mutate(
+      {
+        deal_id: `deal-${Date.now()}`,
+        company_id: data.company_id,
+        service_type: data.product,
+        monthly_fee: data.monthly_fee,
+        initial_fee: data.initial_fee,
+        commission_rate: data.margin_rate,
+        monthly_commission: data.monthly_margin,
+        initial_commission: data.initial_margin,
+        contract_start_date: data.contract_start_date,
+        contract_months: data.contract_months,
+        status: data.status,
+        closer_id: data.closer_id,
+        appointer_id: data.appointer_id,
+        notes: data.notes,
+      },
+      {
+        onSuccess: () => {
+          setShowCreateForm(false)
+        },
+      }
+    )
+  }
 
   const columns = useMemo<ColumnDef<SalesOutsourcingOrderWithRelations>[]>(
     () => [
@@ -42,11 +74,20 @@ export default function OutsourcingOrdersPage() {
         accessorFn: (row) => row.company?.company_name || '',
         header: '企業名',
         size: 180,
-        cell: ({ row }) => (
-          <span className="font-medium text-sm">
-            {row.original.company?.company_name || '-'}
-          </span>
-        ),
+        cell: ({ row }) => {
+          const companyId = row.original.company_id
+          const companyName = row.original.company?.company_name
+          if (!companyId || !companyName) {
+            return <span className="text-sm">-</span>
+          }
+          return (
+            <CompanyLink
+              companyId={companyId}
+              companyName={companyName}
+              className="font-medium text-sm"
+            />
+          )
+        },
       },
       {
         accessorKey: 'service_type',
@@ -173,11 +214,17 @@ export default function OutsourcingOrdersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">営業代行受注一覧</h1>
-        <p className="text-muted-foreground text-sm">
-          営業代行サービスの受注・契約状況を管理します
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">営業代行受注一覧</h1>
+          <p className="text-muted-foreground text-sm">
+            営業代行サービスの受注・契約状況を管理します
+          </p>
+        </div>
+        <Button onClick={() => setShowCreateForm(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          新規登録
+        </Button>
       </div>
 
       {/* サマリカード */}
@@ -304,6 +351,14 @@ export default function OutsourcingOrdersPage() {
           </>
         )}
       </div>
+
+      {/* 新規登録フォーム */}
+      <OutsourcingOrderForm
+        open={showCreateForm}
+        onOpenChange={setShowCreateForm}
+        onSubmit={handleCreateOrder}
+        isSubmitting={createOrder.isPending}
+      />
     </div>
   )
 }

@@ -23,6 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { CompanyLink } from '@/components/ui/company-link'
 import { useDeals } from '@/hooks/use-deals'
 import { formatCurrency, formatDate } from '@/lib/utils/format'
 import {
@@ -238,7 +239,15 @@ export default function LeadsOutsourcingPage() {
         cell: ({ row }) => (
           <div>
             <div className="font-medium text-sm">
-              {row.original.company?.company_name || '-'}
+              {row.original.company_id && row.original.company?.company_name ? (
+                <CompanyLink
+                  companyId={row.original.company_id}
+                  companyName={row.original.company.company_name}
+                  className="text-sm"
+                />
+              ) : (
+                row.original.company?.company_name || '-'
+              )}
             </div>
             <div className="text-xs text-muted-foreground">
               {row.original.deal_name || ''}

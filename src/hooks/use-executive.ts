@@ -31,6 +31,7 @@ export type ExecutiveData = {
   allDealsRevenue: Array<{
     id: string
     dealName: string
+    companyId: string
     companyName: string
     yomiStatus: string
     product: string
@@ -196,6 +197,7 @@ function buildAllDealsRevenue() {
     result.push({
       id: order.id,
       dealName: company?.company_name || '不明',
+      companyId: order.company_id || '',
       companyName: company?.company_name || '不明',
       yomiStatus: '受注',
       product: order.product || '-',
@@ -216,6 +218,7 @@ function buildAllDealsRevenue() {
     result.push({
       id: deal.id,
       dealName: deal.deal_name || company?.company_name || '不明',
+      companyId: deal.company_id || '',
       companyName: company?.company_name || '不明',
       yomiStatus: deal.yomi_status || 'ネタ',
       product: '-',

@@ -19,10 +19,14 @@ import {
 } from '@/components/ui/table'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { useAiToolOrders } from '@/hooks/use-orders'
 import { formatCurrency, formatDate, formatPercent } from '@/lib/utils/format'
 import { PRODUCT_NAMES, type ProductKey } from '@/lib/constants/margins'
-import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { ArrowUpDown, ArrowUp, ArrowDown, Plus } from 'lucide-react'
+import { CompanyLink } from '@/components/ui/company-link'
+import { AiToolOrderForm, type AiToolOrderFormData } from '@/components/orders/ai-tool-order-form'
+import { useCreateAiToolOrder } from '@/hooks/use-orders'
 import type { AiToolOrderWithRelations } from '@/types/orders'
 
 const statusColors: Record<string, string> = {
@@ -42,6 +46,35 @@ function getProductDisplayName(productKey: string): string {
 export default function AiToolOrdersPage() {
   const { data: orders, isLoading, error } = useAiToolOrders()
   const [sorting, setSorting] = useState<SortingState>([])
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const createOrder = useCreateAiToolOrder()
+
+  const handleCreateOrder = (data: AiToolOrderFormData) => {
+    createOrder.mutate(
+      {
+        deal_id: `deal-${Date.now()}`,
+        company_id: data.company_id,
+        product: data.product,
+        plan: data.plan,
+        monthly_fee: data.monthly_fee,
+        initial_fee: data.initial_fee,
+        margin_rate: data.margin_rate,
+        monthly_margin: data.monthly_margin,
+        initial_margin: data.initial_margin,
+        contract_start_date: data.contract_start_date,
+        contract_months: data.contract_months,
+        status: data.status,
+        closer_id: data.closer_id,
+        appointer_id: data.appointer_id,
+        notes: data.notes,
+      },
+      {
+        onSuccess: () => {
+          setShowCreateForm(false)
+        },
+      }
+    )
+  }
 
   const columns = useMemo<ColumnDef<AiToolOrderWithRelations>[]>(
     () => [
@@ -50,11 +83,20 @@ export default function AiToolOrdersPage() {
         accessorFn: (row) => row.company?.company_name || '',
         header: '企業名',
         size: 180,
-        cell: ({ row }) => (
-          <span className="font-medium text-sm truncate">
-            {row.original.company?.company_name || '-'}
-          </span>
-        ),
+        cell: ({ row }) => {
+          const companyId = row.original.company_id
+          const companyName = row.original.company?.company_name
+          if (!companyId || !companyName) {
+            return <span className="text-sm">-</span>
+          }
+          return (
+            <CompanyLink
+              companyId={companyId}
+              companyName={companyName}
+              className="font-medium text-sm"
+            />
+          )
+        },
       },
       {
         accessorKey: 'product',
@@ -190,11 +232,17 @@ export default function AiToolOrdersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">AIツール受注一覧</h1>
-        <p className="text-muted-foreground text-sm">
-          AIツール商品の受注・契約状況を管理します
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">AIツール受注一覧</h1>
+          <p className="text-muted-foreground text-sm">
+            AIツール商品の受注・契約状況を管理します
+          </p>
+        </div>
+        <Button onClick={() => setShowCreateForm(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          新規登録
+        </Button>
       </div>
 
       {/* サマリカード */}
@@ -321,6 +369,14 @@ export default function AiToolOrdersPage() {
           </>
         )}
       </div>
+
+      {/* 新規登録フォーム */}
+      <AiToolOrderForm
+        open={showCreateForm}
+        onOpenChange={setShowCreateForm}
+        onSubmit={handleCreateOrder}
+        isSubmitting={createOrder.isPending}
+      />
     </div>
   )
 }

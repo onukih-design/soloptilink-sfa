@@ -33,6 +33,8 @@ import {
   Briefcase,
   FileText,
 } from 'lucide-react'
+import { CompanyLink } from '@/components/ui/company-link'
+import { DealLink } from '@/components/ui/deal-link'
 
 export default function ExecutivePage() {
   const { data: executive, isLoading } = useExecutive()
@@ -300,8 +302,12 @@ export default function ExecutivePage() {
                       <>
                         {executive.allDealsRevenue.map((deal) => (
                           <TableRow key={deal.id}>
-                            <TableCell className="font-medium">{deal.dealName}</TableCell>
-                            <TableCell>{deal.companyName}</TableCell>
+                            <TableCell className="font-medium">
+                              <DealLink dealId={deal.id} dealName={deal.dealName} />
+                            </TableCell>
+                            <TableCell>
+                              <CompanyLink companyId={deal.companyId} companyName={deal.companyName} />
+                            </TableCell>
                             <TableCell>
                               <Badge
                                 style={{
@@ -380,8 +386,12 @@ export default function ExecutivePage() {
                           .filter(d => d.yomiStatus === '受注')
                           .map((deal) => (
                             <TableRow key={deal.id}>
-                              <TableCell className="font-medium">{deal.dealName}</TableCell>
-                              <TableCell>{deal.companyName}</TableCell>
+                              <TableCell className="font-medium">
+                                <DealLink dealId={deal.id} dealName={deal.dealName} />
+                              </TableCell>
+                              <TableCell>
+                                <CompanyLink companyId={deal.companyId} companyName={deal.companyName} />
+                              </TableCell>
                               <TableCell>{deal.product}</TableCell>
                               <TableCell className="text-right font-mono">
                                 {formatCurrency(deal.monthlyFee)}

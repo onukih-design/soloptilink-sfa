@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { useListDeals } from '@/hooks/use-list-analysis'
 import { useInlineUpdateDeal } from '@/hooks/use-deals'
 import { YomiSelectCell } from '@/components/deals/yomi-select-cell'
+import { CompanyLink } from '@/components/ui/company-link'
 import { formatCurrency } from '@/lib/utils/format'
 import { Loader2 } from 'lucide-react'
 import type { YomiStatus } from '@/types/deals'
@@ -73,7 +74,15 @@ export function ListDealsSheet({ listId, listName, open, onOpenChange }: Props) 
                         {deal.deal_number}
                       </TableCell>
                       <TableCell className="font-medium text-sm">
-                        {deal.company?.company_name || '-'}
+                        {deal.company_id && deal.company?.company_name ? (
+                          <CompanyLink
+                            companyId={deal.company_id}
+                            companyName={deal.company.company_name}
+                            className="text-sm"
+                          />
+                        ) : (
+                          deal.company?.company_name || '-'
+                        )}
                       </TableCell>
                       <TableCell>
                         <YomiSelectCell

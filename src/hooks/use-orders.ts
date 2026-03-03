@@ -6,6 +6,8 @@ import type { AiToolOrderWithRelations, SalesOutsourcingOrderWithRelations, Mont
 import type { Tables } from '@/types/database'
 import { IS_DEMO_MODE } from '@/lib/demo-mode'
 import { MOCK_AI_TOOL_ORDERS, MOCK_COMPANIES, MOCK_MONTHLY_REVENUE, MOCK_SALES_OUTSOURCING_ORDERS } from '@/lib/mock-data'
+import type { TablesInsert } from '@/types/database'
+import { toast } from 'sonner'
 
 const ORDERS_KEY = 'orders'
 const REVENUE_KEY = 'revenue'
@@ -283,5 +285,162 @@ export function useUpdateSalesOutsourcingOrderStatus() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [ORDERS_KEY] })
     },
+  })
+}
+
+/**
+ * AIツール受注を新規作成
+ */
+export function useCreateAiToolOrder() {
+  const queryClient = useQueryClient()
+  const supabase = IS_DEMO_MODE ? null : createClient()
+
+  return useMutation({
+    mutationFn: async (order: TablesInsert<'ai_tool_orders'>) => {
+      if (IS_DEMO_MODE) {
+        const now = new Date().toISOString()
+        const newOrder = {
+          id: crypto.randomUUID?.() || `demo-${Date.now()}`,
+          deal_id: order.deal_id || `deal-${Date.now()}`,
+          company_id: order.company_id,
+          product: order.product,
+          plan: order.plan || null,
+          monthly_fee: order.monthly_fee,
+          initial_fee: order.initial_fee || 0,
+          margin_rate: order.margin_rate,
+          monthly_margin: order.monthly_margin,
+          initial_margin: order.initial_margin || 0,
+          contract_start_date: order.contract_start_date || null,
+          contract_end_date: order.contract_end_date || null,
+          contract_months: order.contract_months || null,
+          status: order.status || '契約中',
+          closer_id: order.closer_id || null,
+          appointer_id: order.appointer_id || null,
+          notes: order.notes || null,
+          created_at: now,
+          updated_at: now,
+        }
+        MOCK_AI_TOOL_ORDERS.push(newOrder as typeof MOCK_AI_TOOL_ORDERS[number])
+        return newOrder
+      }
+
+      const { data, error } = await supabase!
+        .from('ai_tool_orders')
+        .insert(order)
+        .select()
+        .single()
+
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [ORDERS_KEY] })
+      toast.success('AIツール受注を登録しました')
+    },
+    onError: () => {
+      toast.error('登録に失敗しました')
+    },
+  })
+}
+
+/**
+ * 営業代行受注を新規作成
+ */
+export function useCreateSalesOutsourcingOrder() {
+  const queryClient = useQueryClient()
+  const supabase = IS_DEMO_MODE ? null : createClient()
+
+  return useMutation({
+    mutationFn: async (order: TablesInsert<'sales_outsourcing_orders'>) => {
+      if (IS_DEMO_MODE) {
+        const now = new Date().toISOString()
+        const newOrder = {
+          id: crypto.randomUUID?.() || `demo-${Date.now()}`,
+          deal_id: order.deal_id || `deal-${Date.now()}`,
+          company_id: order.company_id,
+          service_type: order.service_type,
+          monthly_fee: order.monthly_fee,
+          initial_fee: order.initial_fee || 0,
+          commission_rate: order.commission_rate,
+          monthly_commission: order.monthly_commission,
+          initial_commission: order.initial_commission || 0,
+          contract_start_date: order.contract_start_date || null,
+          contract_end_date: order.contract_end_date || null,
+          contract_months: order.contract_months || null,
+          status: order.status || '契約中',
+          closer_id: order.closer_id || null,
+          appointer_id: order.appointer_id || null,
+          notes: order.notes || null,
+          created_at: now,
+          updated_at: now,
+        }
+        MOCK_SALES_OUTSOURCING_ORDERS.push(newOrder as typeof MOCK_SALES_OUTSOURCING_ORDERS[number])
+        return newOrder
+      }
+
+      const { data, error } = await supabase!
+        .from('sales_outsourcing_orders')
+        .insert(order)
+        .select()
+        .single()
+
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [ORDERS_KEY] })
+      toast.success('営業代行受注を登録しました')
+    },
+    onError: () => {
+      toast.error('登録に失敗しました')
+    },
+  })
+}
+
+/**
+ * 企業IDでAIツール受注を取得
+ */
+export function useAiToolOrdersByCompany(companyId: string) {
+  return useQuery({
+    queryKey: [ORDERS_KEY, 'ai-tools', 'company', companyId],
+    queryFn: async () => {
+      if (IS_DEMO_MODE) {
+        return MOCK_AI_TOOL_ORDERS.filter((o) => o.company_id === companyId)
+      }
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('ai_tool_orders')
+        .select('*')
+        .eq('company_id', companyId)
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return data || []
+    },
+    enabled: !!companyId,
+    staleTime: 30 * 1000,
+  })
+}
+
+/**
+ * 企業IDで営業代行受注を取得
+ */
+export function useOutsourcingOrdersByCompany(companyId: string) {
+  return useQuery({
+    queryKey: [ORDERS_KEY, 'outsourcing', 'company', companyId],
+    queryFn: async () => {
+      if (IS_DEMO_MODE) {
+        return MOCK_SALES_OUTSOURCING_ORDERS.filter((o) => o.company_id === companyId)
+      }
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('sales_outsourcing_orders')
+        .select('*')
+        .eq('company_id', companyId)
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return data || []
+    },
+    enabled: !!companyId,
+    staleTime: 30 * 1000,
   })
 }

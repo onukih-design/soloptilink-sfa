@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { CompanyLink } from '@/components/ui/company-link'
 import { useDeal, useUpdateDeal, useInlineUpdateDeal } from '@/hooks/use-deals'
 import { YomiSelectCell } from '@/components/deals/yomi-select-cell'
 import { OutsourcingFollowupSection } from './outsourcing-followup-section'
@@ -158,7 +159,16 @@ export function OutsourcingDealSheet({ dealId, open, onOpenChange }: Props) {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-0">
-                    <InfoRow label="企業名" value={company?.company_name} />
+                    <InfoRow
+                      label="企業名"
+                      value={
+                        company?.id && company?.company_name ? (
+                          <CompanyLink companyId={company.id} companyName={company.company_name} className="text-sm" />
+                        ) : (
+                          company?.company_name || null
+                        )
+                      }
+                    />
                     <InfoRow label="担当者" value={contact ? `${contact.last_name} ${contact.first_name || ''}`.trim() : null} />
                     <InfoRow label="リスト" value={list?.list_name} />
                     <InfoRow label="商品" value={deal.product} />

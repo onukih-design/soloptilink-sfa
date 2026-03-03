@@ -10,6 +10,7 @@ import {
 } from '@/hooks/use-deals'
 import { DealForm } from '@/components/deals/deal-form'
 import { YomiBadge } from '@/components/deals/yomi-badge'
+import { CompanyLink } from '@/components/ui/company-link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -65,7 +66,7 @@ function InfoRow({
   mono,
 }: {
   label: string
-  value: string
+  value: React.ReactNode
   mono?: boolean
 }) {
   return (
@@ -292,7 +293,16 @@ export default function DealDetailPage() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <InfoRow label="案件番号" value={deal.deal_number ? String(deal.deal_number) : '-'} />
-                <InfoRow label="企業名" value={companyName || '-'} />
+                <InfoRow
+                  label="企業名"
+                  value={
+                    deal.company_id && companyName ? (
+                      <CompanyLink companyId={deal.company_id} companyName={companyName} className="text-sm" />
+                    ) : (
+                      companyName || '-'
+                    )
+                  }
+                />
                 <InfoRow label="担当者" value={contactName} />
                 <InfoRow label="商品" value={productName} />
                 <InfoRow label="ヨミステータス" value={deal.yomi_status || '-'} />

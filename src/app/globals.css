@@ -8,6 +8,14 @@
   }
 }
 
+@layer components {
+  .required::after {
+    content: "*";
+    color: hsl(var(--destructive));
+    margin-left: 0.25rem;
+  }
+}
+
 
 
 @layer base {

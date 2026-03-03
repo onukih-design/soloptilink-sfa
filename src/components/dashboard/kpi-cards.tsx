@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatCurrency, formatPercent } from '@/lib/utils/format'
 import { Briefcase, TrendingUp, DollarSign, CalendarCheck } from 'lucide-react'
@@ -23,6 +24,7 @@ export function KpiCards({ data }: Props) {
       icon: Briefcase,
       color: 'text-blue-600',
       bgColor: 'bg-blue-50',
+      href: '/deals',
     },
     {
       title: '今月受注',
@@ -32,6 +34,7 @@ export function KpiCards({ data }: Props) {
       icon: DollarSign,
       color: 'text-green-600',
       bgColor: 'bg-green-50',
+      href: '/revenue',
     },
     {
       title: 'MRR（月額売上）',
@@ -48,6 +51,7 @@ export function KpiCards({ data }: Props) {
           : 'text-red-600',
       bgColor:
         data.monthlyRevenue.growthRate >= 0 ? 'bg-emerald-50' : 'bg-red-50',
+      href: '/revenue',
     },
     {
       title: '本日のアクション',
@@ -60,31 +64,34 @@ export function KpiCards({ data }: Props) {
         data.todayFollowups.length > 0 ? 'text-orange-600' : 'text-gray-600',
       bgColor:
         data.todayFollowups.length > 0 ? 'bg-orange-50' : 'bg-gray-50',
+      href: '/deals',
     },
   ]
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       {cards.map((card) => (
-        <Card key={card.title}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              {card.title}
-            </CardTitle>
-            <div className={`rounded-lg p-2 ${card.bgColor}`}>
-              <card.icon className={`h-4 w-4 ${card.color}`} />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{card.value}</div>
-            {card.subValue && (
-              <p className="text-xs text-muted-foreground mt-1">
-                {card.subValue}
-              </p>
-            )}
-            <p className={`text-xs mt-1 ${card.color}`}>{card.description}</p>
-          </CardContent>
-        </Card>
+        <Link key={card.title} href={card.href} className="group">
+          <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-primary transition-colors">
+                {card.title}
+              </CardTitle>
+              <div className={`rounded-lg p-2 ${card.bgColor}`}>
+                <card.icon className={`h-4 w-4 ${card.color}`} />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{card.value}</div>
+              {card.subValue && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {card.subValue}
+                </p>
+              )}
+              <p className={`text-xs mt-1 ${card.color}`}>{card.description}</p>
+            </CardContent>
+          </Card>
+        </Link>
       ))}
     </div>
   )
